@@ -8,8 +8,12 @@
 #   CINE / MOVIE / FORMAT   override target (defaults = IMAX/La Odisea/IMAX-Sub)
 #   STATE_FILE           known-dates store (default: ./state/known_days.txt)
 #   ALERT_EVERY          during an outage, re-alert every N failed runs (default 12)
+#   HEARTBEAT            set to 1 to force --verbose (handy from cron env)
 #
-# Flags:  --test   fetch + print current dates, no state/alerts
+# Flags:
+#   --test      fetch + print current dates, no state/alerts
+#   --verbose   send a 💓 Telegram heartbeat on EVERY run (success or failure),
+#               so silence means "not running". (More messages; drop it once confident.)
 #
 # Exit: 0 ok, 2 failure (state untouched; Telegram error alert sent w/ throttling)
 set -uo pipefail   # NOTE: no -e; we handle errors explicitly so we can alert on them
@@ -17,6 +21,16 @@ set -uo pipefail   # NOTE: no -e; we handle errors explicitly so we can alert on
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 [ -f "$SCRIPT_DIR/.env" ] && set -a && . "$SCRIPT_DIR/.env" && set +a
+
+TEST=0; VERBOSE=0
+[ "${HEARTBEAT:-0}" = 1 ] && VERBOSE=1
+for arg in "$@"; do
+  case "$arg" in
+    --test)            TEST=1 ;;
+    --verbose|--heartbeat) VERBOSE=1 ;;
+    *) echo "unknown flag: $arg (use --test / --verbose)" >&2; exit 64 ;;
+  esac
+done
 
 URL='https://entradas.todoshowcase.com/showcase/boleteria.aspx'
 UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/151.0.0.0 Safari/537.36'
@@ -56,7 +70,8 @@ fail() {
   mkdir -p "$(dirname "$FAIL_FILE")"; echo "$n" > "$FAIL_FILE"
   log "FAILURE #$n: $reason"
   # Alert on the 1st failure, then once every ALERT_EVERY runs while still broken.
-  if [ "$n" -eq 1 ] || [ $(( n % ALERT_EVERY )) -eq 0 ]; then
+  # In --verbose mode, report EVERY failed run (no throttle).
+  if [ "$VERBOSE" = 1 ] || [ "$n" -eq 1 ] || [ $(( n % ALERT_EVERY )) -eq 0 ]; then
     telegram "⚠️ Monitor La Odisea IMAX con problemas (fallo #$n).
 Motivo: $reason
 Host: $(hostname)
@@ -115,7 +130,7 @@ fetch_days() {
 fetch_days   # exits via fail() on any error
 COUNT=$(grep -c . "$DAYS")
 
-if [ "${1:-}" = "--test" ]; then
+if [ "$TEST" = 1 ]; then
   log "current dates ($COUNT):"; cat "$DAYS"; exit 0
 fi
 
@@ -150,6 +165,12 @@ Comprá: $URL"; then
     log "alert not delivered — NOT updating state; will retry next run"
     exit 2
   fi
+  STATUS="🎟️ $NCOUNT nuevas"
 else
   log "no new dates ($COUNT current)"
+  STATUS="sin novedades"
+fi
+
+if [ "$VERBOSE" = 1 ]; then
+  telegram "💓 Monitor OK ($(hostname)) — $COUNT fechas (última: $(tail -1 "$DAYS")). $STATUS. $(date '+%H:%M')"
 fi

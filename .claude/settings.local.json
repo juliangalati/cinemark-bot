@@ -4,7 +4,9 @@
       "Bash(./check.sh *)",
       "Bash(chmod +x monitor.sh)",
       "Bash(./monitor.sh)",
-      "Bash(sed -i '' '$d' state/known_days.txt)"
+      "Bash(sed -i '' '$d' state/known_days.txt)",
+      "Bash(grep -q '^\\\\.env$' .gitignore)",
+      "Bash(echo \"gitignored? $\\(grep -q '^\\\\.env$' .gitignore && echo yes || echo NO\\)\")"
     ]
   }
 }
