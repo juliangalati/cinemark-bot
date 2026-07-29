@@ -57,10 +57,11 @@ state, so this is safe:
 crontab -e     # NOTE: crontab, not cron
 # add both lines:
 */20 * * * * /Users/tomi/git/tmigone/cinemark-bot/monitor.sh           >> /Users/tomi/git/tmigone/cinemark-bot/monitor.log 2>&1
-0    * * * * /Users/tomi/git/tmigone/cinemark-bot/monitor.sh --verbose >> /Users/tomi/git/tmigone/cinemark-bot/monitor.log 2>&1
+10   * * * * /Users/tomi/git/tmigone/cinemark-bot/monitor.sh --verbose >> /Users/tomi/git/tmigone/cinemark-bot/monitor.log 2>&1
 ```
-- Line 1: checks every 20 min, alerts only on new dates / breakage.
-- Line 2: sends one 💓 per hour so you know it's alive.
+- Line 1: checks at **:00, :20, :40**, alerts only on new dates / breakage.
+- Line 2: sends one 💓 per hour at **:10** — staggered off the 20-min slots so the two
+  jobs never run at the same instant (avoids a race on the shared state file).
 
 Drop the `--verbose` line if you don't want heartbeats, or add it to line 1 to confirm
 every single run.
