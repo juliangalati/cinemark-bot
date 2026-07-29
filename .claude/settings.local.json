@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./check.sh *)",
+      "Bash(chmod +x monitor.sh)",
+      "Bash(./monitor.sh)",
+      "Bash(sed -i '' '$d' state/known_days.txt)"
+    ]
+  }
+}
